@@ -16,6 +16,9 @@ import { SolanaPayLogo } from '../images/SolanaPayLogo';
 import { SOLIcon } from '../images/SOLIcon';
 import css from './App.module.css';
 
+import { MAINNET_ENDPOINT, MAINNET_USDC_MINT } from '../../utils/constants';
+import { USDCIcon } from '../images/USDCIcon';
+
 interface AppProps extends NextAppProps {
     host: string;
     query: {
@@ -36,7 +39,8 @@ const App: FC<AppProps> & { getInitialProps(appContext: AppContext): Promise<App
     // If you're testing without a mobile wallet, set this to true to allow a browser wallet to be used.
     const connectWallet = false;
     // If you're testing without a mobile wallet, set this to Devnet or Mainnet to configure some browser wallets.
-    const network = WalletAdapterNetwork.Devnet;
+    // const network = WalletAdapterNetwork.Devnet;
+    const network = WalletAdapterNetwork.Mainnet;
 
     const wallets = useMemo(
         () => (connectWallet ? [
@@ -48,8 +52,8 @@ const App: FC<AppProps> & { getInitialProps(appContext: AppContext): Promise<App
     );
 
     // Toggle comments on these lines to use transaction requests instead of transfer requests.
-    const link = undefined;
-    // const link = useMemo(() => new URL(`${baseURL}/api/`), [baseURL]);
+    // const link = undefined;
+    const link = useMemo(() => new URL(`${baseURL}/api/`), [baseURL]);
 
     let recipient: PublicKey | undefined = undefined;
     const { recipient: recipientParam, label, message } = query;
@@ -65,21 +69,33 @@ const App: FC<AppProps> & { getInitialProps(appContext: AppContext): Promise<App
         <ThemeProvider>
             <FullscreenProvider>
                 {recipient && label ? (
-                    <ConnectionProvider endpoint={DEVNET_ENDPOINT}>
+                    // <ConnectionProvider endpoint={DEVNET_ENDPOINT}>
+                    <ConnectionProvider endpoint={MAINNET_ENDPOINT}>
                         <WalletProvider wallets={wallets} autoConnect={connectWallet}>
                             <WalletModalProvider>
-                                <ConfigProvider
-                                    baseURL={baseURL}
-                                    link={link}
-                                    recipient={recipient}
-                                    label={label}
-                                    message={message}
-                                    symbol="SOL"
-                                    icon={<SOLIcon />}
-                                    decimals={9}
-                                    minDecimals={1}
-                                    connectWallet={connectWallet}
-                                >
+                            <ConfigProvider
+                                baseURL={baseURL}
+                                link={link}
+                                recipient={recipient}
+                                label={label}
+                                message={message}
+                                symbol="SOL"
+                                icon={<SOLIcon />}
+                                decimals={9}
+                                minDecimals={1}
+                                connectWallet={connectWallet}
+                                // baseURL={baseURL}
+                                // link={link}
+                                // recipient={recipient}
+                                // label={label}
+                                // message={message}
+                                // splToken={MAINNET_USDC_MINT}
+                                // symbol="USDC"
+                                // icon={<USDCIcon />}
+                                // decimals={6}
+                                // minDecimals={2}
+                                // connectWallet={connectWallet}
+                            >
                                     <TransactionsProvider>
                                         <PaymentProvider>
                                             <Component {...pageProps} />

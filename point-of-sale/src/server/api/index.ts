@@ -1,9 +1,14 @@
+// Initial for Transfer
 import { createTransfer } from '@solana/pay';
-import { PublicKey, Transaction } from '@solana/web3.js';
+import { PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import BigNumber from 'bignumber.js';
 import { NextApiHandler } from 'next';
 import { connection } from '../core';
 import { cors, rateLimit } from '../middleware';
+
+// Add for Transaction
+import { clusterApiUrl, Connection, Keypair } from '@solana/web3.js';
+import { createTransferCheckedInstruction, getAccount, getAssociatedTokenAddress, getMint } from '@solana/spl-token';
 
 interface GetResponse {
     label: string;
@@ -12,6 +17,7 @@ interface GetResponse {
 
 const get: NextApiHandler<GetResponse> = async (request, response) => {
     const label = request.query.label;
+    console.log('label', label)
     if (!label) throw new Error('missing label');
     if (typeof label !== 'string') throw new Error('invalid label');
 
@@ -28,7 +34,102 @@ interface PostResponse {
     message?: string;
 }
 
+const splToken = new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
+const MERCHANT_WALLET = new PublicKey("HiwypA1Vi2ByQgRCRQNfsTv9cEpkiLKELhVTe4T5phGW");
+const FROM_WALLET = new PublicKey("Avou1bV5W2Ue5s3PY8npEoNFQcXFsL4jgd2D4mqNV1G1");
+
+// @ts-expect-error
+async function createSplTransferIx(sender, connection) {
+    const senderInfo = await connection.getAccountInfo(sender);
+    if (!senderInfo) throw new Error('sender not found');
+
+    // Get the sender's ATA and check that the account exists and can send tokens
+    const senderATA = await getAssociatedTokenAddress(splToken, sender);
+    const senderAccount = await getAccount(connection, senderATA);
+
+    if (!senderAccount.isInitialized) throw new Error('sender not initialized');
+    if (senderAccount.isFrozen) throw new Error('sender frozen');
+
+    // Get the merchant's ATA and check that the account exists and can receive tokens
+    const merchantATA = await getAssociatedTokenAddress(splToken, MERCHANT_WALLET);
+    const merchantAccount = await getAccount(connection, merchantATA);
+    if (!merchantAccount.isInitialized) throw new Error('merchant not initialized');
+    if (merchantAccount.isFrozen) throw new Error('merchant frozen');
+
+    // Check that the token provided is an initialized mint
+    const mint = await getMint(connection, splToken);
+    if (!mint.isInitialized) throw new Error('mint not initialized');
+
+    // You should always calculate the order total on the server to prevent
+    // people from directly manipulating the amount on the client
+    // let amount = calculateCheckoutAmount();
+    // amount = amount.times(TEN.pow(mint.decimals)).integerValue(BigNumber.ROUND_FLOOR);
+
+    const amount = new BigNumber(0.001);
+
+    // Check that the sender has enough tokens
+    const tokens = BigInt(String(amount));
+    if (tokens > senderAccount.amount) throw new Error('insufficient funds');
+
+    // Create an instruction to transfer SPL tokens, asserting the mint and decimals match
+    const splTransferIx = createTransferCheckedInstruction(
+        senderATA,
+        splToken,
+        merchantATA,
+        sender,
+        tokens,
+        mint.decimals
+    );
+
+    // Create a reference that is unique to each checkout session
+    const references = [new Keypair().publicKey];
+
+    // add references to the instruction
+    for (const pubkey of references) {
+        splTransferIx.keys.push({ pubkey, isWritable: false, isSigner: false });
+    }
+
+    return splTransferIx;
+}
+
+    /*
+    Transfer request.
+    */
 const post: NextApiHandler<PostResponse> = async (request, response) => {
+    // Account provided in the transaction request body by the wallet.
+    const accountField = request.body?.account;
+    if (!accountField) throw new Error('missing account');
+
+    const sender = new PublicKey(accountField);
+
+    // create spl transfer instruction
+    const splTransferIx = await createSplTransferIx(sender, connection);
+
+    // create the transaction
+    const transaction = new Transaction();
+
+    // add the instruction to the transaction
+    transaction.add(splTransferIx);
+    // transaction.add(
+    //     SystemProgram.transfer({
+    //         fromPubkey: FROM_WALLET,
+    //         toPubkey: MERCHANT_WALLET,
+    //         lamports: LAMPORTS_PER_SOL / 100,
+    //     })
+    // );
+
+    // Serialize and return the unsigned transaction.
+    const serializedTransaction = transaction.serialize({
+        verifySignatures: false,
+        requireAllSignatures: false,
+    });
+
+    const base64Transaction = serializedTransaction.toString('base64');
+    const message = 'Thank you for your purchase of ExiledApe #518';
+
+    response.status(200).send({ transaction: base64Transaction, message });
+}
+const post_transfer: NextApiHandler<PostResponse> = async (request, response) => {
     /*
     Transfer request params provided in the URL by the app client. In practice, these should be generated on the server,
     persisted along with an unpredictable opaque ID representing the payment, and the ID be passed to the app client,
