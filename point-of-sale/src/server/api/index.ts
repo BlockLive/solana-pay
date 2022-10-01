@@ -96,27 +96,25 @@ async function createSplTransferIx(sender, connection) {
     Transfer request.
     */
 const post: NextApiHandler<PostResponse> = async (request, response) => {
-    // Account provided in the transaction request body by the wallet.
+
+    // // Account provVided in the transaction request body by the wallet.
     const accountField = request.body?.account;
     if (!accountField) throw new Error('missing account');
+    console.info('Transaction request!', { accountField });
 
     const sender = new PublicKey(accountField);
-
-    // create spl transfer instruction
-    const splTransferIx = await createSplTransferIx(sender, connection);
 
     // create the transaction
     const transaction = new Transaction();
 
     // add the instruction to the transaction
-    transaction.add(splTransferIx);
-    // transaction.add(
-    //     SystemProgram.transfer({
-    //         fromPubkey: FROM_WALLET,
-    //         toPubkey: MERCHANT_WALLET,
-    //         lamports: LAMPORTS_PER_SOL / 100,
-    //     })
-    // );
+    transaction.add(SystemProgram.transfer({ 
+        fromPubkey: sender, 
+        toPubkey: MERCHANT_WALLET, 
+        lamports: LAMPORTS_PER_SOL * 0.1 
+    }));
+    transaction.feePayer = sender;
+    transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
 
     // Serialize and return the unsigned transaction.
     const serializedTransaction = transaction.serialize({
@@ -128,6 +126,7 @@ const post: NextApiHandler<PostResponse> = async (request, response) => {
     const message = 'Thank you for your purchase of ExiledApe #518';
 
     response.status(200).send({ transaction: base64Transaction, message });
+
 }
 const post_transfer: NextApiHandler<PostResponse> = async (request, response) => {
     /*
