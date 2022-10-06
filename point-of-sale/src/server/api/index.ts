@@ -17,7 +17,7 @@ interface GetResponse {
 
 const get: NextApiHandler<GetResponse> = async (request, response) => {
     const label = request.query.label;
-    console.log('label', label)
+    console.log('GET response for label: ', label)
     if (!label) throw new Error('missing label');
     if (typeof label !== 'string') throw new Error('invalid label');
 
@@ -30,8 +30,9 @@ const get: NextApiHandler<GetResponse> = async (request, response) => {
 };
 
 interface PostResponse {
-    transaction: string;
+    transaction?: string;
     message?: string;
+    error?: string;
 }
 
 const splToken = new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
@@ -97,35 +98,75 @@ async function createSplTransferIx(sender, connection) {
     */
 const post: NextApiHandler<PostResponse> = async (request, response) => {
 
-    // // Account provVided in the transaction request body by the wallet.
-    const accountField = request.body?.account;
-    if (!accountField) throw new Error('missing account');
-    console.info('Transaction request!', { accountField });
+    try {
+        // // Account provVided in the transaction request body by the wallet.
+        const accountField = request.body?.account;
+        if (!accountField) throw new Error('missing account');
+        console.info('Transaction request!', { accountField });
 
-    const sender = new PublicKey(accountField);
+        const sender = new PublicKey(accountField);
 
-    // create the transaction
-    const transaction = new Transaction();
+        console.info('ACCOUNT:', accountField);
 
-    // add the instruction to the transaction
-    transaction.add(SystemProgram.transfer({ 
-        fromPubkey: sender, 
-        toPubkey: MERCHANT_WALLET, 
-        lamports: LAMPORTS_PER_SOL * 0.1 
-    }));
-    transaction.feePayer = sender;
-    transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
 
-    // Serialize and return the unsigned transaction.
-    const serializedTransaction = transaction.serialize({
-        verifySignatures: false,
-        requireAllSignatures: false,
-    });
 
-    const base64Transaction = serializedTransaction.toString('base64');
-    const message = 'Thank you for your purchase of ExiledApe #518';
+        // NFT CHECK
+            
+        // Mint address for NFT #2
+        const mint = new PublicKey("GTQEvYLyy93mjMvzcW7wwEc2Dbm6CYxFSWzocczyYr7U");
+            // cndy.state.whitelistMintSettings.mint
 
-    response.status(200).send({ transaction: base64Transaction, message });
+        // Get the sender's ATA and check that the account exists and can send tokens
+        const senderATA = await getAssociatedTokenAddress(mint, sender);
+        console.log("senderATA", senderATA);
+
+        // Check that the token provided is an initialized mint
+        const minted = await getMint(connection, mint);
+        console.log("IS MINTED?", minted);
+
+
+        try {
+            const balance = await connection.getTokenAccountBalance(senderATA);
+            console.log('balance', balance);
+            console.log('Has NFT!');
+        }
+        catch (err) {
+            console.log('err', err);
+            console.log('User does not have NFT!');
+            // throw err;
+            // SET UI TO SHOW SUCCESS / FAIL!
+        }
+
+
+        // create the transaction
+        const transaction = new Transaction();
+
+        // add the instruction to the transaction
+        transaction.add(SystemProgram.transfer({ 
+            fromPubkey: sender, 
+            toPubkey: MERCHANT_WALLET, 
+            // lamports: LAMPORTS_PER_SOL * 0.1 
+            lamports: 0
+        }));
+        transaction.feePayer = sender;
+        transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+
+        // Serialize and return the unsigned transaction.
+        const serializedTransaction = transaction.serialize({
+            verifySignatures: false,
+            requireAllSignatures: false,
+        });
+
+        const base64Transaction = serializedTransaction.toString('base64');
+        const message = 'Thank you for your purchase of ExiledApe #518';
+
+        response.status(200).send({ transaction: base64Transaction, message });
+    } catch (err) {
+        console.log("ERR TOP: ", err)
+        // How to respond with error message to Phantom?
+        response.status(500).send({ error: 'failed to load data' })
+
+    }
 
 }
 const post_transfer: NextApiHandler<PostResponse> = async (request, response) => {
