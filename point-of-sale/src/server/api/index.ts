@@ -10,6 +10,24 @@ import { cors, rateLimit } from '../middleware';
 import { clusterApiUrl, Connection, Keypair } from '@solana/web3.js';
 import { createTransferCheckedInstruction, getAccount, getAssociatedTokenAddress, getMint } from '@solana/spl-token';
 
+
+// Add for Channels
+const Channels = require('pusher');
+
+const {
+    APP_ID: appId,
+    KEY: key,
+    SECRET: secret,
+    CLUSTER: cluster,
+  } = process.env;
+
+const channels = new Channels({
+    appId,
+    key,
+    secret,
+    cluster,
+});
+
 interface GetResponse {
     label: string;
     icon: string;
@@ -125,6 +143,10 @@ const post: NextApiHandler<PostResponse> = async (request, response) => {
         console.log("IS MINTED?", minted);
 
 
+        const channelField = request.query.channel;
+        console.log("Channel", channelField);
+
+
         try {
             const balance = await connection.getTokenAccountBalance(senderATA);
             console.log('balance', balance);
@@ -137,6 +159,11 @@ const post: NextApiHandler<PostResponse> = async (request, response) => {
             // SET UI TO SHOW SUCCESS / FAIL!
         }
 
+        // @ts-ignore
+        channels.trigger('channel-name', 'event-name', {}, () => {
+            console.log("EVENT TRIGGERED!")
+          }); 
+
 
         // create the transaction
         const transaction = new Transaction();
@@ -145,8 +172,7 @@ const post: NextApiHandler<PostResponse> = async (request, response) => {
         transaction.add(SystemProgram.transfer({ 
             fromPubkey: sender, 
             toPubkey: MERCHANT_WALLET, 
-            // lamports: LAMPORTS_PER_SOL * 0.1 
-            lamports: 0
+            lamports: LAMPORTS_PER_SOL * 0.1 
         }));
         transaction.feePayer = sender;
         transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
@@ -229,10 +255,11 @@ const post_transfer: NextApiHandler<PostResponse> = async (request, response) =>
     const serialized = transaction.serialize({
         verifySignatures: false,
         requireAllSignatures: false,
-    });
+    }); 
     const base64 = serialized.toString('base64');
 
     response.status(200).send({ transaction: base64, message });
+
 };
 
 const index: NextApiHandler<GetResponse | PostResponse> = async (request, response) => {

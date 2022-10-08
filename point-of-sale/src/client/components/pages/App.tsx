@@ -2,7 +2,7 @@ import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
 import { GlowWalletAdapter, PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adapter-wallets';
-import { PublicKey } from '@solana/web3.js';
+import { Keypair, PublicKey } from '@solana/web3.js';
 import { AppContext, AppProps as NextAppProps, default as NextApp } from 'next/app';
 import { AppInitialProps } from 'next/dist/shared/lib/utils';
 import { FC, useMemo } from 'react';
@@ -16,8 +16,25 @@ import { SolanaPayLogo } from '../images/SolanaPayLogo';
 import { SOLIcon } from '../images/SOLIcon';
 import css from './App.module.css';
 
+
 import { MAINNET_ENDPOINT, MAINNET_USDC_MINT } from '../../utils/constants';
 import { USDCIcon } from '../images/USDCIcon';
+
+
+import Pusher from 'pusher-js'
+
+const pusher = new Pusher('1b902f5ba54cd567012f', {
+    cluster: 'us2',
+  })
+  
+const channel = pusher.subscribe('channel-name')
+
+// Bind a callback function to an event within the subscribed channel
+// @ts-ignore
+channel.bind('event-name', function (data) {
+    // Do what you wish with the data from the event
+    console.log("PUSHER!:", data)
+});
 
 interface AppProps extends NextAppProps {
     host: string;
@@ -35,6 +52,7 @@ const App: FC<AppProps> & { getInitialProps(appContext: AppContext): Promise<App
     pageProps,
 }) => {
     const baseURL = `https://${host}`;
+    const channel = Keypair.generate().publicKey.toBase58();
 
     // If you're testing without a mobile wallet, set this to true to allow a browser wallet to be used.
     const connectWallet = false;
@@ -74,6 +92,7 @@ const App: FC<AppProps> & { getInitialProps(appContext: AppContext): Promise<App
                             <WalletModalProvider>
                             <ConfigProvider
                                 baseURL={baseURL}
+                                channel={channel}
                                 link={link}
                                 recipient={recipient}
                                 label={label}

@@ -6,6 +6,7 @@ import { Confirmations, Digits } from '../../types';
 export interface ConfigProviderProps {
     children: ReactNode;
     baseURL: string;
+    channel: string;
     link?: URL;
     recipient: PublicKey;
     label: string;
@@ -22,6 +23,7 @@ export interface ConfigProviderProps {
 export const ConfigProvider: FC<ConfigProviderProps> = ({
     children,
     baseURL,
+    channel,
     link,
     recipient,
     label,
@@ -38,6 +40,7 @@ export const ConfigProvider: FC<ConfigProviderProps> = ({
         <ConfigContext.Provider
             value={{
                 baseURL,
+                channel,
                 link,
                 recipient,
                 label,

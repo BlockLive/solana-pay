@@ -23,7 +23,7 @@ export interface PaymentProviderProps {
 
 export const PaymentProvider: FC<PaymentProviderProps> = ({ children }) => {
     const { connection } = useConnection();
-    const { link, recipient, splToken, label, message, requiredConfirmations, connectWallet } = useConfig();
+    const { link, channel, recipient, splToken, label, message, requiredConfirmations, connectWallet } = useConfig();
     const { publicKey, sendTransaction } = useWallet();
 
     const [amount, setAmount] = useState<BigNumber>();
@@ -37,9 +37,15 @@ export const PaymentProvider: FC<PaymentProviderProps> = ({ children }) => {
 
     const url = useMemo(() => {
         if (link) {
+            console.log("MAKE LINK:", link);
+            console.log("channel", channel);
             const url = new URL(String(link));
 
             url.searchParams.append('recipient', recipient.toBase58());
+
+            if (channel) {
+                url.searchParams.append('channel', channel);
+            }
 
             if (amount) {
                 url.searchParams.append('amount', amount.toFixed(amount.decimalPlaces() ?? 0));

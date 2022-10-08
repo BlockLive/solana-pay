@@ -4,6 +4,7 @@ import { Confirmations, Digits } from '../types';
 
 export interface ConfigContextState {
     baseURL: string;
+    channel: string;
     link: URL | undefined;
     recipient: PublicKey;
     label: string;
