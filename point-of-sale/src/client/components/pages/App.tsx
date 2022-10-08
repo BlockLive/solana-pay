@@ -5,7 +5,7 @@ import { GlowWalletAdapter, PhantomWalletAdapter, SolflareWalletAdapter } from '
 import { Keypair, PublicKey } from '@solana/web3.js';
 import { AppContext, AppProps as NextAppProps, default as NextApp } from 'next/app';
 import { AppInitialProps } from 'next/dist/shared/lib/utils';
-import { FC, useMemo } from 'react';
+import { FC, useMemo, useState } from 'react';
 import { DEVNET_ENDPOINT } from '../../utils/constants';
 import { ConfigProvider } from '../contexts/ConfigProvider';
 import { FullscreenProvider } from '../contexts/FullscreenProvider';
@@ -22,19 +22,9 @@ import { USDCIcon } from '../images/USDCIcon';
 
 
 import Pusher from 'pusher-js'
+import { useNavigateWithQuery } from '../../hooks/useNavigateWithQuery';
 
-const pusher = new Pusher('1b902f5ba54cd567012f', {
-    cluster: 'us2',
-  })
-  
-const channel = pusher.subscribe('channel-name')
 
-// Bind a callback function to an event within the subscribed channel
-// @ts-ignore
-channel.bind('event-name', function (data) {
-    // Do what you wish with the data from the event
-    console.log("PUSHER!:", data)
-});
 
 interface AppProps extends NextAppProps {
     host: string;
@@ -51,8 +41,35 @@ const App: FC<AppProps> & { getInitialProps(appContext: AppContext): Promise<App
     query,
     pageProps,
 }) => {
+
+    const [txnStatus, setTxnStatus] = useState("SCAN!");
+
+    // SET UP CHANNEL CONNECTION FOR SUCCESS / FAIL EVENTS
+    const navigate = useNavigateWithQuery();
+    const channelName = Keypair.generate().publicKey.toBase58();
+    const pusher = new Pusher('1b902f5ba54cd567012f', {
+        cluster: 'us2',
+    })
+    
+    const channel = pusher.subscribe(channelName)
+
+    // Bind a callback function to an event within the subscribed channel
+    // @ts-ignore
+    channel.bind('entry-scan', function (data) {
+        // Do what you wish with the data from the event
+        console.log("PUSHER!:", data)
+
+        if (data.hasNft) {
+            setTxnStatus("SUCCESS!");
+            console.log("YES NFT");
+        } else {
+            setTxnStatus("NO NFT");
+            console.log("NO NFT");
+        }
+    });
+
+    // WALLET
     const baseURL = `https://${host}`;
-    const channel = Keypair.generate().publicKey.toBase58();
 
     // If you're testing without a mobile wallet, set this to true to allow a browser wallet to be used.
     const connectWallet = false;
@@ -92,12 +109,13 @@ const App: FC<AppProps> & { getInitialProps(appContext: AppContext): Promise<App
                             <WalletModalProvider>
                             <ConfigProvider
                                 baseURL={baseURL}
-                                channel={channel}
+                                channel={channelName}
                                 link={link}
                                 recipient={recipient}
                                 label={label}
                                 message={message}
-                                symbol="SOL"
+                                // symbol="SOL"
+                                symbol={txnStatus}
                                 icon={<SOLIcon />}
                                 decimals={9}
                                 minDecimals={1}

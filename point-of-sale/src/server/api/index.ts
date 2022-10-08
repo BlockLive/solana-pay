@@ -111,6 +111,13 @@ async function createSplTransferIx(sender, connection) {
     return splTransferIx;
 }
 
+const updateChannel = (channel:string, hasNft: boolean) => {
+    const eventName = 'entry-scan'
+    channels.trigger(channel, eventName, { 
+        hasNft 
+    }); 
+}
+
     /*
     Transfer request.
     */
@@ -120,50 +127,28 @@ const post: NextApiHandler<PostResponse> = async (request, response) => {
         // // Account provVided in the transaction request body by the wallet.
         const accountField = request.body?.account;
         if (!accountField) throw new Error('missing account');
-        console.info('Transaction request!', { accountField });
 
         const sender = new PublicKey(accountField);
 
-        console.info('ACCOUNT:', accountField);
-
-
-
-        // NFT CHECK
-            
-        // Mint address for NFT #2
+        // Check for NFT Ticket.  Mint address for NFT.
         const mint = new PublicKey("GTQEvYLyy93mjMvzcW7wwEc2Dbm6CYxFSWzocczyYr7U");
-            // cndy.state.whitelistMintSettings.mint
 
         // Get the sender's ATA and check that the account exists and can send tokens
         const senderATA = await getAssociatedTokenAddress(mint, sender);
-        console.log("senderATA", senderATA);
 
-        // Check that the token provided is an initialized mint
+        // Check that the token provided is an initialized mint.
         const minted = await getMint(connection, mint);
-        console.log("IS MINTED?", minted);
+        if (!minted.isInitialized) throw new Error('mint not initialized');
 
-
-        const channelField = request.query.channel;
-        console.log("Channel", channelField);
-
-
+        // Check for NFT, push status response onto channel.
+        const channelField = String(request.query.channel);
         try {
             const balance = await connection.getTokenAccountBalance(senderATA);
-            console.log('balance', balance);
-            console.log('Has NFT!');
+            updateChannel(channelField, true);
         }
         catch (err) {
-            console.log('err', err);
-            console.log('User does not have NFT!');
-            // throw err;
-            // SET UI TO SHOW SUCCESS / FAIL!
+            updateChannel(channelField, false);
         }
-
-        // @ts-ignore
-        channels.trigger('channel-name', 'event-name', {}, () => {
-            console.log("EVENT TRIGGERED!")
-          }); 
-
 
         // create the transaction
         const transaction = new Transaction();
