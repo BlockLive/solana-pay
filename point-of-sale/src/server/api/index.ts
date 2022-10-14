@@ -79,11 +79,11 @@ async function createUtilizeIx(ticketCollectionMintIdField: string, sender: Publ
 
 const updateChannel = (channel: string, args: ChannelArgs) => {
     const eventName = 'entry-scan';
-    const { hasNft, utilizeReady } = args;
-    console.log("from update",  )
+
+    console.log('from update');
     channels.trigger(channel, eventName, {
-        hasNft,
-        utilizeReady,
+        hasNft: args.hasNft ?? false,
+        utilizeReady: args.utilizeReady ?? false,
     });
 };
 
@@ -109,6 +109,7 @@ const post: NextApiHandler<PostResponse> = async (request, response) => {
         } finally {
             updateChannel(channelField, { hasNft });
         }
+        if (!hasNft) return response.status(500).send({ error: 'No NFT' });
         let utilizeReady = false;
         try {
             // create the transaction
