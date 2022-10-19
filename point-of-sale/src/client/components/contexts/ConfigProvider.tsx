@@ -7,6 +7,7 @@ export interface ConfigProviderProps {
     children: ReactNode;
     baseURL: string;
     channel: string;
+    ticketCollectionMintId?: string;
     link?: URL;
     recipient: PublicKey;
     label: string;
@@ -24,6 +25,7 @@ export const ConfigProvider: FC<ConfigProviderProps> = ({
     children,
     baseURL,
     channel,
+    ticketCollectionMintId,
     link,
     recipient,
     label,
@@ -41,6 +43,7 @@ export const ConfigProvider: FC<ConfigProviderProps> = ({
             value={{
                 baseURL,
                 channel,
+                ticketCollectionMintId,
                 link,
                 recipient,
                 label,

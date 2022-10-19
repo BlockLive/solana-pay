@@ -4,6 +4,7 @@
     "APP_ID": "@channels-app-id",
     "KEY": "1b902f5ba54cd567012f",
     "SECRET": "@channels-app-secret",
-    "CLUSTER": "us2"
+    "CLUSTER": "us2",
+    "CENTRAL_PAYER": "@channels-central-payer"
   }
 }

@@ -16,15 +16,8 @@ import { SolanaPayLogo } from '../images/SolanaPayLogo';
 import { SOLIcon } from '../images/SOLIcon';
 import css from './App.module.css';
 
-
-import { MAINNET_ENDPOINT, MAINNET_USDC_MINT } from '../../utils/constants';
-import { USDCIcon } from '../images/USDCIcon';
-
-
-import Pusher from 'pusher-js'
+import Pusher from 'pusher-js';
 import { useNavigateWithQuery } from '../../hooks/useNavigateWithQuery';
-
-
 
 interface AppProps extends NextAppProps {
     host: string;
@@ -32,6 +25,7 @@ interface AppProps extends NextAppProps {
         recipient?: string;
         label?: string;
         message?: string;
+        ticketCollectionMintId?: string;
     };
 }
 
@@ -41,30 +35,30 @@ const App: FC<AppProps> & { getInitialProps(appContext: AppContext): Promise<App
     query,
     pageProps,
 }) => {
-
-    const [txnStatus, setTxnStatus] = useState("SCAN!");
+    const [txnStatus, setTxnStatus] = useState('SCAN!');
 
     // SET UP CHANNEL CONNECTION FOR SUCCESS / FAIL EVENTS
     const navigate = useNavigateWithQuery();
     const channelName = Keypair.generate().publicKey.toBase58();
     const pusher = new Pusher('1b902f5ba54cd567012f', {
         cluster: 'us2',
-    })
-    
-    const channel = pusher.subscribe(channelName)
+    });
+
+    const channel = pusher.subscribe(channelName);
 
     // Bind a callback function to an event within the subscribed channel
     // @ts-ignore
     channel.bind('entry-scan', function (data) {
+        console.log("from frontend", data);
         // Do what you wish with the data from the event
-        console.log("PUSHER!:", data)
+        const { hasNft, utilizeReady } = data;
 
-        if (data.hasNft) {
-            setTxnStatus("SUCCESS!");
-            console.log("YES NFT");
+        if (hasNft && utilizeReady) {
+            setTxnStatus('SUCCESS');
+        } else if (hasNft) {
+            setTxnStatus('CHECKING IN');
         } else {
-            setTxnStatus("NO NFT");
-            console.log("NO NFT");
+            setTxnStatus('FAILED');
         }
     });
 
@@ -78,11 +72,14 @@ const App: FC<AppProps> & { getInitialProps(appContext: AppContext): Promise<App
     // const network = WalletAdapterNetwork.Mainnet;
 
     const wallets = useMemo(
-        () => (connectWallet ? [
-            new GlowWalletAdapter({ network }),
-            new PhantomWalletAdapter(),
-            new SolflareWalletAdapter({ network })
-        ] : []),
+        () =>
+            connectWallet
+                ? [
+                      new GlowWalletAdapter({ network }),
+                      new PhantomWalletAdapter(),
+                      new SolflareWalletAdapter({ network }),
+                  ]
+                : [],
         [connectWallet, network]
     );
 
@@ -91,7 +88,7 @@ const App: FC<AppProps> & { getInitialProps(appContext: AppContext): Promise<App
     const link = useMemo(() => new URL(`${baseURL}/api/`), [baseURL]);
 
     let recipient: PublicKey | undefined = undefined;
-    const { recipient: recipientParam, label, message } = query;
+    const { recipient: recipientParam, label, message, ticketCollectionMintId } = query;
     if (recipientParam && label) {
         try {
             recipient = new PublicKey(recipientParam);
@@ -103,35 +100,36 @@ const App: FC<AppProps> & { getInitialProps(appContext: AppContext): Promise<App
     return (
         <ThemeProvider>
             <FullscreenProvider>
-                {recipient && label ? (
+                {recipient && label && ticketCollectionMintId ? (
                     <ConnectionProvider endpoint={DEVNET_ENDPOINT}>
                         <WalletProvider wallets={wallets} autoConnect={connectWallet}>
                             <WalletModalProvider>
-                            <ConfigProvider
-                                baseURL={baseURL}
-                                channel={channelName}
-                                link={link}
-                                recipient={recipient}
-                                label={label}
-                                message={message}
-                                // symbol="SOL"
-                                symbol={txnStatus}
-                                icon={<SOLIcon />}
-                                decimals={9}
-                                minDecimals={1}
-                                connectWallet={connectWallet}
-                                // baseURL={baseURL}
-                                // link={link}
-                                // recipient={recipient}
-                                // label={label}
-                                // message={message}
-                                // splToken={MAINNET_USDC_MINT}
-                                // symbol="USDC"
-                                // icon={<USDCIcon />}
-                                // decimals={6}
-                                // minDecimals={2}
-                                // connectWallet={connectWallet}
-                            >
+                                <ConfigProvider
+                                    baseURL={baseURL}
+                                    channel={channelName}
+                                    ticketCollectionMintId={ticketCollectionMintId}
+                                    link={link}
+                                    recipient={recipient}
+                                    label={label}
+                                    message={message}
+                                    // symbol="SOL"
+                                    symbol={txnStatus}
+                                    icon={<SOLIcon />}
+                                    decimals={9}
+                                    minDecimals={1}
+                                    connectWallet={connectWallet}
+                                    // baseURL={baseURL}
+                                    // link={link}
+                                    // recipient={recipient}
+                                    // label={label}
+                                    // message={message}
+                                    // splToken={MAINNET_USDC_MINT}
+                                    // symbol="USDC"
+                                    // icon={<USDCIcon />}
+                                    // decimals={6}
+                                    // minDecimals={2}
+                                    // connectWallet={connectWallet}
+                                >
                                     <TransactionsProvider>
                                         <PaymentProvider>
                                             <Component {...pageProps} />
@@ -156,13 +154,14 @@ App.getInitialProps = async (appContext) => {
 
     const { query, req } = appContext.ctx;
     const recipient = query.recipient as string;
+    const ticketCollectionMintId = query.ticketCollectionMintId as string;
     const label = query.label as string;
     const message = query.message || undefined;
     const host = req?.headers.host || 'localhost:3001';
 
     return {
         ...props,
-        query: { recipient, label, message },
+        query: { recipient, ticketCollectionMintId, label, message },
         host,
     };
 };
